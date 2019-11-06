@@ -1,148 +1,13 @@
-#python train.py --output_path=saved_models
+#Example Usage: python train.py --data_path=generated_data --output_path=saved_models
 
 import util, models
+from util import *
 from features import *
 import importlib, os, argparse, copy, time
 from collections import defaultdict
-import os, sys, pickle, audioread, pretty_midi, librosa, numpy as np
+import os, sys, pickle, librosa, numpy as np
 from sklearn.utils import shuffle
 from tqdm import tqdm
-
-"""
-############################################
-############ util functions ################
-############################################
-
-def get_mfcc_inputs(dataset, source_ffts, flatten=True):
-    datapoints = []
-    component_lists = dataset['components']
-    for component_indices in component_lists:
-        fft_vectors = np.vstack([source_ffts[i] for i in component_indices])
-        if flatten:
-            fft_vectors = fft_vectors.reshape(-1)
-        datapoints.append(fft_vectors)
-    return np.array(datapoints)
-
-def get_mfcc_mix_targets(dataset):
-    return np.array(dataset['mix_mfccs'])
-
-def get_fft_mix_targets(dataset):
-    return np.array(dataset['mix_ffts'])
-
-def get_fft_inputs(dataset, source_ffts, flatten=True):
-    datapoints = []
-    component_lists = dataset['components']
-    for component_indices in component_lists:
-        fft_vectors = np.vstack([source_ffts[i] for i in component_indices])
-        if flatten:
-            fft_vectors = fft_vectors.reshape(-1)
-        datapoints.append(fft_vectors)
-    return np.array(datapoints)
-
-# shuffles the order of lstm steps in the entire data set
-def shuffle_order(X):
-    for i in range(len(X)):
-        np.random.shuffle(X[i])
-
-# orders by norm for a single 2D matrix
-def order_by_norm(X):
-    norm_order = np.argsort(np.linalg.norm(X, axis=1))
-    new_X = np.zeros_like(X)
-    for i in range(len(new_X)):
-        new_X[i] = X[norm_order[i]]
-    return new_X
-        
-# orders lstm steps by norm for the entire data set
-def order_dataset_by_norm(X):
-    new_X = np.zeros_like(X)
-    for i in range(len(X)):
-        new_X[i] = order_by_norm(X[i])
-    return new_X
-        
-def apply_max_norm(data):
-    for i in range(len(data)):
-        data[i] = data[i]/max(data[i])
-        
-# Train all lstm lengths together in one model with padded inputs
-def get_padded_mfcc_inputs_and_targets(datasets_hash, source_mfccs):
-    max_steps = max(mixture_values)
-    padded_datasets = []
-    targets = []
-    for m in mixture_values:
-        # get inputs
-        d = datasets_hash[m]
-        inputs = copy.deepcopy(get_mfcc_inputs(d, source_mfccs, flatten=False))
-        padded = np.zeros((inputs.shape[0],max_steps,inputs.shape[2]))
-        padded[:inputs.shape[0], :inputs.shape[1], :inputs.shape[2]] = inputs
-        padded_datasets.append(padded)
-        
-        #get targets
-        targets.append(copy.deepcopy(get_mfcc_mix_targets(datasets_hash[m])))
-        
-    return np.vstack(padded_datasets), np.vstack(targets)
-
-# Train all lstm lengths together in one model with padded inputs
-def get_padded_fft_inputs_and_targets(datasets_hash, source_ffts):
-    max_steps = max(mixture_values)
-    padded_datasets = []
-    targets = []
-    for m in mixture_values:
-        # get inputs
-        d = datasets_hash[m]
-        inputs = copy.deepcopy(get_fft_inputs(d, source_ffts, flatten=False))
-        #padded = np.zeros((inputs.shape[0],max_steps,inputs.shape[2]))
-        #padded[:inputs.shape[0], :inputs.shape[1], :inputs.shape[2]] = inputs
-        #padded_datasets.append(padded)
-        #padded_datasets += list(padded)
-        padded_datasets.append(inputs)
-        
-        #get targets
-        targets.append(copy.deepcopy(get_fft_mix_targets(datasets_hash[m])))
-        
-    #return np.vstack(padded_datasets), np.vstack(targets)
-    return padded_datasets, targets
-
-def lstm_batch_generator(datasets, targets, batch_size=100, shuffle_sequence=False):
-    # each dataset has the right shape
-    while True:
-        for d, t in zip(datasets, targets):
-            i = 0
-            while i < len(d):
-                batch_inputs = d[i:i+batch_size]
-                if shuffle_sequence:
-                    shuffle_order(batch_inputs)
-                batch_targets = t[i:i+batch_size]
-                #print(batch_inputs[0].shape)
-                i += batch_size
-                yield(batch_inputs, batch_targets)
-            #padded = np.zeros((inputs.shape[0],max_steps,inputs.shape[2]))
-            
-def lstm_batch_generator_sampling(datasets, targets, batch_size=100, shuffle_sequence=False):
-    # each dataset has the right shape
-    counter = 0
-    # reshuffle each dataset every time this function gets called or after 500 batches
-    for d, t in zip(datasets, targets):
-        d, t = shuffle(d, t)
-    while True:
-        counter += 1
-        # reshuffle each dataset after 500 batches
-        if counter % 500 == 0:
-            for d, t in zip(datasets, targets):
-                d, t = shuffle(d, t)
-        dataset_index = np.random.randint(len(datasets))
-        d = datasets[dataset_index]
-        t = targets[dataset_index]
-        i = np.random.randint(len(d)-batch_size)
-        batch_inputs = d[i:i+batch_size]
-        if shuffle_sequence:
-            shuffle_order(batch_inputs)
-        batch_targets = t[i:i+batch_size]
-        #print(batch_inputs[0].shape)
-        #i += batch_size
-        yield(batch_inputs, batch_targets)
-        #padded = np.zeros((inputs.shape[0],max_steps,inputs.shape[2]))
-
-"""
 
 ############################################
 ################ Parse Args ################
@@ -150,17 +15,13 @@ def lstm_batch_generator_sampling(datasets, targets, batch_size=100, shuffle_seq
 parser = argparse.ArgumentParser()
 
 # Path to the output folder to save model checkpoints
+parser.add_argument('--data_path', type=str, required=True)
 parser.add_argument('--output_path', type=str, required=True)
-parser.add_argument('--logging', action='store_true')
+
 args = parser.parse_args()
+
+root_path = args.data_path
 output_path = args.output_path
-logging = args.logging is not None
-
-if logging:
-    print_to_log_str = "\n"
-else:
-    print_to_log_str = "\r"
-
 
 ############################################
 ################ Load Data #################
@@ -172,59 +33,64 @@ train_mixture_datasets = defaultdict(None)
 dev_mixture_datasets = defaultdict(None)
 test_mixture_datasets = defaultdict(None)
 
-root_path = 'generated_data'
-
-train_mixture_datasets = defaultdict(None)
-dev_mixture_datasets = defaultdict(None)
-test_mixture_datasets = defaultdict(None)
-
 mixture_values = [2,3,6,12,20,30]
+
 
 # load training data
 # FFT
 filename = f"{root_path}/train/train_weighted_ffts.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     train_weighted_ffts = pickle.load(f)
 
 # MFCC
 filename = f"{root_path}/train/train_weighted_mfccs.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     train_weighted_mfccs = pickle.load(f)
     
 for m in mixture_values:
     filename = f"{root_path}/train/mixture_data_{m}.pkl"
+    print(f"Loading Pre-computed features from {filename}...")
     with open(filename, "rb") as f:
         train_mixture_datasets[m] = pickle.load(f)
+        print(f"Contains {len(train_mixture_datasets[m]['components'])} datapoints")
              
 # load dev data
 # FFT
 filename = f"{root_path}/dev/dev_weighted_ffts.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     dev_weighted_ffts = pickle.load(f)
 
 # MFCC
 filename = f"{root_path}/dev/dev_weighted_mfccs.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     dev_weighted_mfccs = pickle.load(f)
     
 for m in mixture_values:
     filename = f"{root_path}/dev/mixture_data_{m}.pkl"
+    print(f"Loading Pre-computed features from {filename}...")
     with open(filename, 'rb') as f:
         dev_mixture_datasets[m] = pickle.load(f)
         
 # load test data
 # FFT
 filename = f"{root_path}/test/test_weighted_ffts.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     test_weighted_ffts = pickle.load(f)
     
 # MFCC
 filename = f"{root_path}/test/test_weighted_mfccs.pkl"
+print(f"Loading Pre-computed features from {filename}...")
 with open(filename, "rb") as f:
     test_weighted_mfccs = pickle.load(f)
 
 for m in mixture_values:
     filename = f"{root_path}/test/mixture_data_{m}.pkl"
+    print(f"Loading Pre-computed features from {filename}...")
     with open(filename, 'rb') as f:
         test_mixture_datasets[m] = pickle.load(f)
         
@@ -247,7 +113,7 @@ for data in [train_mixture_datasets, dev_mixture_datasets]:
     for m in mixture_values:
         data[m]['mean_fft'] = np.mean(data[m]['mix_ffts'], axis=0)
         data[m]['mean_mfcc'] = np.mean(data[m]['mix_mfccs'], axis=0)
-
+        
 ############################################
 ################ FFT MODELS ################
 ############################################
@@ -283,7 +149,7 @@ for m in mixture_values:
                                         batch_size=200, epochs=1, verbose=False)
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -331,7 +197,7 @@ for m in mixture_values:
                                                  batch_size=200, epochs=1, verbose=False)
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -352,7 +218,7 @@ print("FFT Unordered LSTM")
 patience = 10
 loss_fn = 'mean_squared_error'
 fft_lstm_models_unordered = defaultdict(None)
-os.system("mkdir -p {output_path}/fft/lstm_unordered")
+os.system(f"mkdir -p {output_path}/fft/lstm_unordered")
 
 for m in mixture_values:
     print("Training model for %d components" % (m))
@@ -381,7 +247,7 @@ for m in mixture_values:
         
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -431,7 +297,7 @@ for m in mixture_values:
             shuffle_order(X_train)
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -480,7 +346,7 @@ for m in mixture_values:
             
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -529,7 +395,7 @@ for m in mixture_values:
 
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -576,7 +442,7 @@ for m in mixture_values:
             
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:
@@ -625,7 +491,7 @@ for m in mixture_values:
             shuffle_order(X_train)
             loss = res.history['loss'][0]
             val_loss = res.history['val_loss'][0]
-            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end=print_to_log_str)
+            print(f"Epoch: {e} ... loss: {loss} ... val loss: {val_loss}", end="\r")
 
             best_result = min(history)
             if val_loss < best_result:

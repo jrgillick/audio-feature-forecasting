@@ -121,20 +121,50 @@ def get_all_specs(signals):
     return [real_stft(signal) for signal in tqdm(signals)]
 
 def get_all_weighted_ffts(signals, n_processes):
-    return Parallel(n_jobs=n_processes)(
-        delayed(energy_weighted_fft)(signal) for signal in tqdm(signals))
+    all_feats = []
+    i = 0
+    while i < len(signals):
+        signals_batch = signals[i:i+1000]
+        feats = Parallel(n_jobs=n_processes)(
+            delayed(energy_weighted_fft)(signal) for signal in tqdm(signals_batch))
+        all_feats += feats
+        i += len(signals_batch)
+    return all_feats    
+    #return Parallel(n_jobs=n_processes)(
+    #    delayed(energy_weighted_fft)(signal) for signal in tqdm(signals))
     #return [energy_weighted_fft(signal) for signal in tqdm(signals)]
 
 def get_all_weighted_mfccs(signals, n_processes):
-    return Parallel(n_jobs=n_processes)(
-        delayed(energy_weighted_mfcc)(signal) for signal in tqdm(signals))
+    all_feats = []
+    i = 0
+    while i < len(signals):
+        signals_batch = signals[i:i+1000]
+        feats = Parallel(n_jobs=n_processes)(
+            delayed(energy_weighted_mfcc)(signal) for signal in tqdm(signals_batch))
+        all_feats += feats
+        i += len(signals_batch)
+    return all_feats
+    #return Parallel(n_jobs=n_processes)(
+    #    delayed(energy_weighted_mfcc)(signal) for signal in tqdm(signals))
     #return [energy_weighted_mfcc(signal) for signal in tqdm(signals)]
     
 def get_all_weighted_ffts_and_mfccs(signals, n_processes):
-    results = Parallel(n_jobs=n_processes)(
-        delayed(energy_weighted_fft_and_mfcc)(signal) for signal in tqdm(signals))
-    ffts, mfccs = unpack_list_of_tuples(results)
-    return ffts, mfccs
+    all_ffts = []
+    all_mfccs = []
+    i = 0
+    while i < len(signals):
+        signals_batch = signals[i:i+1000]
+        results = Parallel(n_jobs=n_processes)(
+            delayed(energy_weighted_fft_and_mfcc)(signal) for signal in tqdm(signals_batch))
+        ffts, mfccs = unpack_list_of_tuples(results)
+        all_ffts += ffts
+        all_mfccs += mfccs
+        i += len(signals_batch)
+    return all_ffts, all_mfccs
+    #results = Parallel(n_jobs=n_processes)(
+    #    delayed(energy_weighted_fft_and_mfcc)(signal) for signal in tqdm(signals))
+    #ffts, mfccs = unpack_list_of_tuples(results)
+    #return ffts, mfccs
 
 def get_file_rms(signal):
     return np.sqrt(np.dot(signal, signal))/len(signal)

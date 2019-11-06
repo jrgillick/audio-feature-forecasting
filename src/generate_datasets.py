@@ -1,5 +1,5 @@
-#python generate_datasets.py --db_path=/data/jrgillick/projects/assisted_orchestration/OrchDB/OrchDB_flat \
-#--num_parallel_processes=20
+#Example use: python generate_datasets.py --db_path=OrchDB/OrchDB_flat \
+#--num_parallel_processes=10
 
 import util
 from features import *
@@ -23,13 +23,11 @@ parser.add_argument('--db_path', type=str, required=True)
 # Path where the generated dataset will be stored. Default is the generated_data folder.
 # Folders named 'train', 'dev', and 'test' will be created inside here, if they don't exist.
 parser.add_argument('--generated_dataset_path', type=str, default='generated_data')
-
 # Number of parallel processes to use when pre-computing features.
-# Our server has 20 cpu's, so we use '20. 
+# e.g. Our server has 20 cpu's, so we use up to 20. 
 # This speeds up computation a lot.
 parser.add_argument('--num_parallel_processes', type=str, default='1')
-    
-parser.add_argument('--num_train_datapoints', type=str, default='7500')
+parser.add_argument('--num_train_datapoints', type=str, default='20000')
 parser.add_argument('--num_dev_datapoints', type=str, default='2000')
 parser.add_argument('--num_test_datapoints', type=str, default='2000')
 
@@ -106,6 +104,7 @@ with open(f"{generated_dataset_path}/dev/dev_weighted_ffts.pkl", "wb") as f:
 
 with open(f"{generated_dataset_path}/test/test_weighted_ffts.pkl", "wb") as f:
     pickle.dump(test_weighted_ffts, f)
+
     
 print("Computing Energy-Weighted MFCCS...")
 train_weighted_mfccs = get_all_weighted_mfccs(train_signals, n_processes=num_processes)
@@ -139,11 +138,18 @@ for m in mixture_values:
     
     # Train
     print("Mixing audio files...")
-    mixes, components, mixture_coefs = make_mixes(train_signals, m, num_train_datapoints)
-    #h = {'mixes': mixes, 'components': components, 'mixture_coefs': mixture_coefs}
-    h = {'components': components, 'mixture_coefs': mixture_coefs}
     print("Pre-computing FFT and MFCC features...")
-    h['mix_ffts'], h['mix_mfccs'] = get_all_weighted_ffts_and_mfccs(mixes, n_processes=20)
+    i = 0
+    h = defaultdict(list)
+    while i < num_train_datapoints:
+        mixes, components, mixture_coefs = make_mixes(train_signals, m, 1000)
+        h['components'] += components
+        h['mixture_coefs'] += mixture_coefs
+        mix_ffts, mix_mfccs = get_all_weighted_ffts_and_mfccs(mixes, n_processes=num_processes)
+        h['mix_ffts'] += mix_ffts
+        h['mix_mfccs'] += mix_mfccs
+        i += 1000
+        print(len(h['components']))
     output_path = f"{root_path}/train/mixture_data_{m}.pkl"
     with open(output_path, 'wb') as f: pickle.dump(h, f)
     #train_mixture_datasets[m] = h
@@ -154,7 +160,7 @@ for m in mixture_values:
     #h = {'mixes': mixes, 'components': components, 'mixture_coefs': mixture_coefs}
     h = {'components': components, 'mixture_coefs': mixture_coefs}
     print("Pre-computing FFT and MFCC features...")
-    h['mix_ffts'], h['mix_mfccs'] = get_all_weighted_ffts_and_mfccs(mixes, n_processes=20)
+    h['mix_ffts'], h['mix_mfccs'] = get_all_weighted_ffts_and_mfccs(mixes, n_processes=num_processes)
     output_path = f"{root_path}/dev/mixture_data_{m}.pkl"
     with open(output_path, 'wb') as f: pickle.dump(h, f)
     #dev_mixture_datasets[m] = h
@@ -165,7 +171,7 @@ for m in mixture_values:
     #h = {'mixes': mixes, 'components': components, 'mixture_coefs': mixture_coefs}
     h = {'components': components, 'mixture_coefs': mixture_coefs}
     print("Pre-computing FFT and MFCC features...")
-    h['mix_ffts'], h['mix_mfccs'] = get_all_weighted_ffts_and_mfccs(mixes, n_processes=20)
+    h['mix_ffts'], h['mix_mfccs'] = get_all_weighted_ffts_and_mfccs(mixes, n_processes=num_processes)
     output_path = f"{root_path}/test/mixture_data_{m}.pkl"
     with open(output_path, 'wb') as f: pickle.dump(h, f)
     #test_mixture_datasets[m] = h
