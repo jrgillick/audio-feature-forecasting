@@ -1,6 +1,6 @@
 # audio-feature-forecasting
 
-This repository contains code to for estimating features of mixed sounds using the pre-computed features of individual sound sources. This code accompanies the paper:
+This repository contains code for estimating features of mixed sounds using the pre-computed features of individual sound sources. The code accompanies this paper:
 *  Jon Gillick, Carmine-Emanuele Cella, and David Bamman, "[Estimating Unobserved Audio Features for Target-Based Orchestration](http://archives.ismir.net/ismir2019/paper/000021.pdf)", ISMIR 2019. 
 
 
@@ -12,7 +12,7 @@ To reproduce the experiments in the paper:
 
 2. Generate datasets by randomly combining individual notes together using [generate_datasets.py](../generate_datasets.py). The script generates notes for a few different fixed values of "M" (2,3,6,12,20,20), where M in the number of notes in each mixture. You can change this value in the script. Precomputed features (energy-weight FFT or MFCC) will be computed for each note in the data. To use other features, you can replace the ones defined in [features.py](../features.py).
 
-`python generate_datasets.py --db_path=OrchDB/OrchDB_flat --num_train_datapoints=20000 --num_parallel_processes=<your_number_of_parallel_processes> `
+`python generate_datasets.py --db_path=OrchDB/OrchDB_flat --generated_dataset_path=generated_data --num_train_datapoints=20000 --num_parallel_processes=<your_number_of_parallel_processes> `
 
 3. Train and save models for prediction using [train.py](../train.py).
 
