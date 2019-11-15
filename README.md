@@ -1,3 +1,5 @@
+# Audio Feature Forecasting
+
 This repository contains code for estimating features of mixed sounds using the pre-computed features of individual sound sources. The code accompanies this paper:
 *  Jon Gillick, Carmine-Emanuele Cella, and David Bamman, "[Estimating Unobserved Audio Features for Target-Based Orchestration](http://archives.ismir.net/ismir2019/paper/000021.pdf)", ISMIR 2019. 
 
