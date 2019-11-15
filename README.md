@@ -1,8 +1,10 @@
-# audio-feature-forecasting
-
 This repository contains code for estimating features of mixed sounds using the pre-computed features of individual sound sources. The code accompanies this paper:
 *  Jon Gillick, Carmine-Emanuele Cella, and David Bamman, "[Estimating Unobserved Audio Features for Target-Based Orchestration](http://archives.ismir.net/ismir2019/paper/000021.pdf)", ISMIR 2019. 
 
+### UPDATE(11/2019):
+* We re-ran the FFT prediction experiments presented in Figure 3 in the paper, but this time training for longer and using 200,000 datapoints instead of 7500. After this change, the predictions are substantially improved - updated plots are posted here in the [results](results) folder. 
+
+# Overview
 
 This code was developed using the [OrchDB](http://www.carminecella.com/orchidea#datasets) dataset of individual instrument samples.  This task of predicting the way that signals mix together can be useful particularly in the context of searching for ways to automatically orchestrate or layer sounds together.
 
